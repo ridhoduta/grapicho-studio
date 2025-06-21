@@ -157,7 +157,14 @@
   frameKolaseImage.src = './img/frame-kolase.png';
   const photoHeight = (1240 * 3) / 4; // 930px 
 
-  navigator.mediaDevices.getUserMedia({ video: true })
+ navigator.mediaDevices.getUserMedia({
+  video: {
+    aspectRatio: 4 / 3,
+    width: { ideal: 640 },
+    height: { ideal: 480 },
+    facingMode: 'user' // Kamera depan (selfie)
+  }
+})
     .then(stream => {
       video.srcObject = stream;
     })
