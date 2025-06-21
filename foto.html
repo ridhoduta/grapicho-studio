@@ -85,7 +85,7 @@
     <div class="col-md-8">
       <div id="videoContainer" class="rounded overflow-hidden">
         <video id="video" autoplay playsinline></video>
-        <img src="./img/frame.png" alt="Frame" class="frame-overlay"/>
+        <img src="./img/frame-bazar.png" alt="Frame" class="frame-overlay"/>
         <div id="timerDisplay">3</div>
         <button class="btn btn-dark" id="btnCaptureOverlay" onclick="startCountdown()">Ambil Foto</button>
       </div>
@@ -153,7 +153,7 @@
   ];
 
   const frameImage = new Image();
-  frameImage.src = './img/frame.png';
+  frameImage.src = './img/frame-bazar.png';
 
   navigator.mediaDevices.getUserMedia({ video: true })
     .then(stream => {
