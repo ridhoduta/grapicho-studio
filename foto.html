@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kolase Foto 4:3</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <style>
+    body { padding-top: 70px; background: #f0f0f0; }
+    #videoContainer {
+      position: relative;
+      aspect-ratio: 4 / 3;
+    }
+    #video {
+      transform: scaleX(-1);
+      width: 100%;
+      height: auto;
+      object-fit: cover;
+    }
+    #btnCaptureOverlay {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+    }
+    .frame-overlay {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 9;
+    }
+    #timerDisplay {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 5rem;
+      font-weight: bold;
+      color: white;
+      text-shadow: 2px 2px 8px black;
+      z-index: 10;
+      display: none;
+    }
+    .photo-canvas {
+      border: 2px solid #000;
+      width: 100%;
+      max-width: 100%;
+    }
+    #canvasPreview {
+      /* border: 2px solid #000; */
+      width: 100%;
+      max-width: 340px;
+      height: auto;
+    }
+  </style>
+</head>
+<body>
+
+<nav class="navbar navbar-light bg-white fixed-top shadow-sm">
+  <div class="container">
+    <a class="navbar-brand" href="#">Grapicho Studio</a>
+  </div>
+</nav>
+
+<div class="container mt-5">
+  <h2 class="text-center mb-4">Foto Grapicho</h2>
+
+  <div class="row mb-4">
+    <div class="col-md-8">
+      <div id="videoContainer" class="rounded overflow-hidden">
+        <video id="video" autoplay playsinline></video>
+        <img src="./img/frame.png" alt="Frame" class="frame-overlay"/>
+        <div id="timerDisplay">3</div>
+        <button class="btn btn-dark" id="btnCaptureOverlay" onclick="startCountdown()">Ambil Foto</button>
+      </div>
+    </div>
+    <div class="col-md-4 d-flex flex-column gap-3">
+      <div>
+        <canvas id="canvas1" class="photo-canvas d-none" width="640" height="480"></canvas>
+        <button class="btn btn-outline-primary btn-sm mt-1 d-none" onclick="showModal(0)" id="btnView1">Lihat Foto 1</button>
+      </div>
+      <div>
+        <canvas id="canvas2" class="photo-canvas d-none" width="640" height="480"></canvas>
+        <button class="btn btn-outline-primary btn-sm mt-1 d-none" onclick="showModal(1)" id="btnView2">Lihat Foto 2</button>
+      </div>
+      <div>
+        <canvas id="canvas3" class="photo-canvas d-none" width="640" height="480"></canvas>
+        <button class="btn btn-outline-primary btn-sm mt-1 d-none" onclick="showModal(2)" id="btnView3">Lihat Foto 3</button>
+      </div>
+    </div>
+    <button id="btnReset" class="btn btn-danger d-none mt-2" onclick="resetPhotos()">Hapus Foto / Take Ulang</button>
+  </div>
+
+  <div class="text-center">
+    <button id="btnPreview" class="btn btn-success d-none" onclick="generatePreview()">Preview Kolase</button>
+  </div>
+
+  <div class="mt-5 text-center p-4 ">
+    <canvas id="canvasPreview" width="640" height="1440"></canvas>
+    <br />
+    <button id="btnDownload" class="btn btn-primary mt-3 d-none" onclick="downloadImage()">Cetak / Download</button>
+  </div>
+</div>
+
+<!-- Modal untuk Preview Fullscreen -->
+<div class="modal fade" id="modalPreview" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-fullscreen">
+    <div class="modal-content bg-dark text-white">
+      <div class="modal-body text-center">
+        <img id="modalImage" src="" alt="Preview Foto" class="img-fluid" />
+      </div>
+      <div class="modal-footer justify-content-center">
+        <button class="btn btn-light" data-bs-dismiss="modal">Tutup</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const video = document.getElementById('video');
+  const canvasPreview = document.getElementById('canvasPreview');
+  const ctxPreview = canvasPreview.getContext('2d');
+  const timerDisplay = document.getElementById('timerDisplay');
+  const photoList = [null, null, null];
+  let photoIndex = 0;
+
+  const canvasEls = [
+    document.getElementById('canvas1'),
+    document.getElementById('canvas2'),
+    document.getElementById('canvas3')
+  ];
+
+  const btnViews = [
+    document.getElementById('btnView1'),
+    document.getElementById('btnView2'),
+    document.getElementById('btnView3')
+  ];
+
+  const frameImage = new Image();
+  frameImage.src = './img/frame.png';
+
+  navigator.mediaDevices.getUserMedia({ video: true })
+    .then(stream => {
+      video.srcObject = stream;
+    })
+    .catch(err => {
+      alert('Gagal mengakses kamera: ' + err);
+    });
+
+  function startCountdown() {
+    if (photoIndex >= 3) return;
+    let count = 3;
+    timerDisplay.textContent = count;
+    timerDisplay.style.display = 'block';
+
+    const interval = setInterval(() => {
+      count--;
+      if (count === 0) {
+        clearInterval(interval);
+        timerDisplay.style.display = 'none';
+        takePhoto();
+      } else {
+        timerDisplay.textContent = count;
+      }
+    }, 1000);
+  }
+
+  function takePhoto() {
+    if (photoIndex >= 3) return;
+
+    const canvas = canvasEls[photoIndex];
+    const ctx = canvas.getContext('2d');
+
+    ctx.save();
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+    ctx.restore();
+
+    // Gambar frame
+    if (frameImage.complete) {
+      ctx.drawImage(frameImage, 0, 0, canvas.width, canvas.height);
+    } else {
+      frameImage.onload = () => {
+        ctx.drawImage(frameImage, 0, 0, canvas.width, canvas.height);
+      }
+    }
+
+    canvas.classList.remove('d-none');
+    btnViews[photoIndex].classList.remove('d-none');
+    photoList[photoIndex] = canvas.toDataURL('image/png');
+    photoIndex++;
+
+    if (photoIndex === 3) {
+      stopCamera();
+      document.getElementById('btnPreview').classList.remove('d-none');
+      document.getElementById('btnReset').classList.remove('d-none');
+    }
+  }
+
+  function resetPhotos() {
+    photoList.fill(null);
+    canvasEls.forEach((canvas, i) => {
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      canvas.classList.add('d-none');
+      btnViews[i].classList.add('d-none');
+    });
+
+    photoIndex = 0;
+    document.getElementById('btnPreview').classList.add('d-none');
+    document.getElementById('btnReset').classList.add('d-none');
+    document.getElementById('btnDownload').classList.add('d-none');
+    ctxPreview.clearRect(0, 0, canvasPreview.width, canvasPreview.height);
+
+    if (!video.srcObject) {
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => {
+          video.srcObject = stream;
+        });
+    }
+  }
+
+  function stopCamera() {
+    const stream = video.srcObject;
+    if (stream) {
+      const tracks = stream.getTracks();
+      tracks.forEach(track => track.stop());
+      video.srcObject = null;
+    }
+  }
+
+  function generatePreview() {
+    const imgs = photoList.map(src => {
+      const img = new Image();
+      img.src = src;
+      return img;
+    });
+
+    imgs[2].onload = () => {
+      ctxPreview.clearRect(0, 0, canvasPreview.width, canvasPreview.height);
+
+      const targetWidth = canvasPreview.width;
+      const targetHeight = 480;
+
+      for (let i = 0; i < 3; i++) {
+        if (imgs[i].src) {
+          ctxPreview.drawImage(imgs[i], 0, i * targetHeight, targetWidth, targetHeight);
+          ctxPreview.drawImage(frameImage, 0, i * targetHeight, targetWidth, targetHeight);
+        }
+      }
+
+      canvasPreview.classList.remove('d-none');
+      document.getElementById('btnDownload').classList.remove('d-none');
+    }
+  }
+
+  function downloadImage() {
+    const link = document.createElement('a');
+    link.download = 'kolase-foto.png';
+    link.href = canvasPreview.toDataURL();
+    link.click();
+  }
+
+  function showModal(index) {
+    const modalImage = document.getElementById('modalImage');
+    modalImage.src = photoList[index];
+    const modal = new bootstrap.Modal(document.getElementById('modalPreview'));
+    modal.show();
+  }
+</script>
+
+</body>
+</html>
