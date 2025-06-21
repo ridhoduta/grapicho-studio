@@ -49,11 +49,10 @@
       max-width: 100%;
     }
     #canvasPreview {
-      /* border: 2px solid #000; */
-      width: 100%;
-      max-width: 340px;
-      height: auto;
-    }
+  width: 100%;
+  max-width: 400px; /* untuk tampil di layar responsif */
+  height: auto;
+}
   </style>
 </head>
 <body>
@@ -112,7 +111,7 @@
   </div>
 
   <div class="mt-5 text-center p-4 ">
-    <canvas id="canvasPreview" width="640" height="1440"></canvas>
+    <canvas id="canvasPreview" width="1240" height="3508"></canvas>
     <br />
     <button id="btnDownload" class="btn btn-primary mt-3 d-none" onclick="downloadImage()">Cetak / Download</button>
   </div>
@@ -154,6 +153,9 @@
 
   const frameImage = new Image();
   frameImage.src = './img/frame-bazar.png';
+  const frameKolaseImage = new Image();
+  frameKolaseImage.src = './img/frame-kolase.png';
+  const photoHeight = (1240 * 3) / 4; // 930px 
 
   navigator.mediaDevices.getUserMedia({ video: true })
     .then(stream => {
@@ -246,29 +248,45 @@
   }
 
   function generatePreview() {
-    const imgs = photoList.map(src => {
-      const img = new Image();
-      img.src = src;
-      return img;
-    });
+  const imgs = photoList.map(src => {
+    const img = new Image();
+    img.src = src;
+    return img;
+  });
 
-    imgs[2].onload = () => {
-      ctxPreview.clearRect(0, 0, canvasPreview.width, canvasPreview.height);
+  imgs[2].onload = () => {
+    ctxPreview.clearRect(0, 0, canvasPreview.width, canvasPreview.height);
 
-      const targetWidth = canvasPreview.width;
-      const targetHeight = 480;
+    const canvasW = canvasPreview.width; // 1240
+    const photoH = (canvasW * 3) / 4; // 930px, agar tetap 4:3
+    const marginTop = (canvasPreview.height - photoH * 3) / 2; // 359px
 
-      for (let i = 0; i < 3; i++) {
-        if (imgs[i].src) {
-          ctxPreview.drawImage(imgs[i], 0, i * targetHeight, targetWidth, targetHeight);
-          ctxPreview.drawImage(frameImage, 0, i * targetHeight, targetWidth, targetHeight);
-        }
+    for (let i = 0; i < 3; i++) {
+      if (imgs[i].src) {
+        const yPos = marginTop + i * photoH;
+        ctxPreview.drawImage(imgs[i], 0, yPos, canvasW, photoH);
       }
-
-      canvasPreview.classList.remove('d-none');
-      document.getElementById('btnDownload').classList.remove('d-none');
     }
-  }
+
+    // Tambahkan frame kolase
+    if (frameKolaseImage.complete) {
+      ctxPreview.drawImage(frameKolaseImage, 0, 0, canvasW, canvasPreview.height);
+      showPreview();
+    } else {
+      frameKolaseImage.onload = () => {
+        ctxPreview.drawImage(frameKolaseImage, 0, 0, canvasW, canvasPreview.height);
+        showPreview();
+      };
+    }
+  };
+}
+
+
+function showPreview() {
+  canvasPreview.classList.remove('d-none');
+  document.getElementById('btnDownload').classList.remove('d-none');
+}
+
 
   function downloadImage() {
     const link = document.createElement('a');
